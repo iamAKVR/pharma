@@ -10,6 +10,7 @@ use App\Models\Report;
 use Illuminate\Support\Facades\Auth;
 use DataTables;
 use App\Http\Requests\Department\AddDepartmentRequest;
+use Carbon\Carbon;
 
 class DepartmentAdminController extends Controller
 {
@@ -62,28 +63,25 @@ class DepartmentAdminController extends Controller
      */
     public function userReportList($id,Request $request){
         if ($request->ajax()) {
-            $data = Report::where('user_id',$id)->where('department_id',auth()->user()->id)->has('user_reports')->with('user_reports')->latest()->get();
-            dd($data);
+
+            $data = Report::where('user_id',$id)->where('department_id',auth()->user()->id)->latest()->get();
             return DataTables::of($data)
-                    ->addIndexColumn()
-                    ->editColumn('first_name', function($row){
-                        return $row->first_name.' '.$row->last_name;
-                    })
-                    ->editColumn('status', function($row){
-                        if($row->user_reports->status){
+                    ->addIndexColumn()->editColumn('status', function($row){
+                        if($row->status){
                             return 'Verified';
                         }
-                        return 'Not verified';
-                    })
-                    ->editColumn('department', function($row){ 
-                        return $row->user_department->name;
-                    })
-                    ->addColumn('action', function($row){
-                        $url = URL('department/user/report').'/'.$row->user_reports->id;
+                        return 'Not Verified';
+                    })->editColumn('created_at', function($row){
+                        return date('Y-m-d H:i:s', strtotime($row->created_at) );
+                    })->addColumn('week', function($row){ 
+                        $now = Carbon::createFromFormat('Y-m-d H:i:s', $row->created_at);
+                        $start =  $now->startOfWeek()->addDay(0)->format('Y-m-d');
+                        $end =  $now->startOfWeek()->addDay(6)->format('Y-m-d');
+                        return $start .' to '.$end;
+                    })->addColumn('action', function($row){
+                        $url = URL('department/user/report').'/'.$row->id;
                         return '<a href="'.$url.'" class="edit btn btn-info btn-sm" >View</a>';
-                    })
-                    ->rawColumns(['action'])
-                    ->make(true);
+                    })->rawColumns(['action'])->make(true);
         }
         return view('department.employee-report-list');
     }
